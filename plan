@@ -1,0 +1,44 @@
+hackathon/
+    ├── backend/
+    │   ├── app.py              # Main FastAPI app
+    │   ├── core/
+    │   │   ├── __init__.py
+    │   │   ├── session.py      # session_id handling
+    │   │   └── aggregator.py   # combine module results
+    │   │
+    │   ├── modules/
+    │   │   ├── Dyslexia/        # MODULE 1 (YOU)
+    │   │   │   ├── __init__.py
+    │   │   │   ├── router.py
+    │   │   │   ├── whisper_service.py
+    │   │   │   └── audio_utils.py
+    │   │   │
+    │   │   └── Dysgraphia/     # MODULE 2 (OTHER TEAM)
+    │   │       ├── __init__.py
+    │   │       ├── router.py
+    │   │       ├── stroke_analyzer.py
+    │   │       └── cnn_model.py
+    │   │
+    │   ├── requirements.txt
+    │   └── README.md
+    │
+    ├── frontend/
+    │   ├── src/
+    │   │   ├── pages/
+    │   │   │   ├── ReadingTest.jsx
+    │   │   │   ├── WritingTest.jsx
+    │   │   │   └── Result.jsx
+    │   │   │
+    │   │   ├── components/
+    │   │   │   ├── AudioRecorder.jsx
+    │   │   │   ├── WritingCanvas.jsx
+    │   │   │   └── ProgressBar.jsx
+    │   │   │
+    │   │   ├── api/
+    │   │   │   ├── audioApi.js
+    │   │   │   └── writingApi.js
+    │   │   │
+    │   │   └── App.jsx
+    │   └── package.json
+    │
+    └── README.md
