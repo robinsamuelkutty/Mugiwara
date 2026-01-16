@@ -4,6 +4,9 @@ from modules.Dyslexia.compare import compare_text
 from modules.Dyslexia.rhyme import generate_rhyming_pair
 from modules.Dyslexia.nonesense import nonesense_generator
 from modules.Dyscalculia.symbol_generator import get_dyscalculia_inducing_letters
+from modules.Dyscalculia.question import fetch_questions
+from modules.Dyslexia.workflow import run_full_dyslexia_workflow
+from modules.Dyslexia.schemas import DyslexiaRunRequest, DyslexiaRunResponse,DyslexiaLevelRequest,DyslexiaFullEvaluateRequest
 from pydantic import BaseModel
 from typing import List
 import requests
@@ -32,6 +35,10 @@ def dyslexia_story(
     theme: str | None = Query(None)
 ):
     return generate_dyslexia_story(difficulty=difficulty)
+
+@app.get("/")
+def welcome():
+    return "Hello World!"
 
 @app.post("/dyslexia/compare")
 def dyslexia_compare(data: DyslexiaCompareRequest):
@@ -91,3 +98,30 @@ def generate_number(n:int):
     return clean
 
 
+@app.post("/dyscalculia/question_generator")
+def generate_question(n:int):
+    response = fetch_questions(n)
+    return response
+
+#### Langchain
+
+@app.post("/dyslexia/run-test", response_model=DyslexiaRunResponse)
+def run_dyslexia_test(payload: DyslexiaRunRequest):
+    try:
+        return run_dyslexia_workflow(payload)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/dyslexia/level-evaluate", response_model=DyslexiaRunResponse)
+def run_dyslexia_test(payload: DyslexiaLevelRequest):
+    try:
+        return run_dyslexia_workflow(payload)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/dyslexia/full-evaluate", response_model=DyslexiaRunResponse)
+def full_eval(payload: DyslexiaFullEvaluateRequest):
+    try:
+        return run_full_dyslexia_workflow(payload)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
