@@ -2,6 +2,7 @@ from fastapi import APIRouter, Query,FastAPI,HTTPException
 from modules.Dyslexia.story import generate_dyslexia_story
 from modules.Dyslexia.compare import compare_text
 from modules.Dyslexia.rhyme import generate_rhyming_pair
+from modules.Dyslexia.nonesense import nonesense_generator
 from pydantic import BaseModel
 from typing import List
 
@@ -31,12 +32,9 @@ def dyslexia_story(
     return generate_dyslexia_story(difficulty=difficulty)
 
 @app.post("/dyslexia/compare")
-def dyslexia_compare(
-    data: DyslexiaCompareRequest,
-    hesitation_threshold: float = 2.0
-):
+def dyslexia_compare(data: DyslexiaCompareRequest):
     result = compare_text(data.model_dump())
-    return result["stats"]
+    return result
 
 @app.get("/dyslexia/rhyme")
 def get_rhyming_pair(level: str = Query("easy", enum=["easy", "medium", "hard"])):
@@ -50,3 +48,8 @@ def get_rhyming_pair(level: str = Query("easy", enum=["easy", "medium", "hard"])
         "word2": pair[1]
     }
 
+
+@app.get("/dyslexia/nonesense")
+def get_nonsense_sentence():
+    statement = nonesense_generator()
+    return statement.text

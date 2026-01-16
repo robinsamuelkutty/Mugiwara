@@ -189,7 +189,7 @@ def compare_text(data: Dict[str, Any]) -> Dict[str, Any]:
 """if __name__ == "__main__":
     data = {
         "target_text": "The quick brown fox",
-        "transcribed_text": "The for brown box",
+        "transcribed_text": "The kick brown box",
         "word_timestamps": [
             {"word": "The", "start": 0.5, "end": 0.8},
             {"word": "kick", "start": 3.2, "end": 3.7},
