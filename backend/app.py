@@ -3,8 +3,10 @@ from modules.Dyslexia.story import generate_dyslexia_story
 from modules.Dyslexia.compare import compare_text
 from modules.Dyslexia.rhyme import generate_rhyming_pair
 from modules.Dyslexia.nonesense import nonesense_generator
+from modules.Dyscalculia.symbol_generator import get_dyscalculia_inducing_letters
 from pydantic import BaseModel
 from typing import List
+import requests
 
 print("This app is running")
 
@@ -53,3 +55,39 @@ def get_rhyming_pair(level: str = Query("easy", enum=["easy", "medium", "hard"])
 def get_nonsense_sentence():
     statement = nonesense_generator()
     return statement.text
+
+## Dyscalculia
+
+OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
+MODEL_NAME = "phi3:mini"
+
+class QueryRequest(BaseModel):
+    prompt: str
+    max_new_tokens: int = 300
+
+@app.get("/")
+def home():
+    return {"status": "FastAPI is running", "ollama": "connected"}
+
+@app.post("/generate")
+def generate(req: QueryRequest):
+    payload = {
+        "model": MODEL_NAME,
+        "prompt": req.prompt,
+        "stream": False,
+        "options": {
+            "num_predict": req.max_new_tokens
+        }
+    }
+
+    r = requests.post(OLLAMA_URL, json=payload, timeout=120)
+    r.raise_for_status()
+    return r.json()
+
+@app.post("/dyscalculia/number_generator")
+def generate_number(n:int):
+    response = get_dyscalculia_inducing_letters(n)
+    clean = response.replace("\n", " ")
+    return clean
+
+
