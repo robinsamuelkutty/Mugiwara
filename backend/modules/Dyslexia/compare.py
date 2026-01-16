@@ -151,8 +151,10 @@ data = {
 }
 
 result = align_with_timestamps(data, hesitation_threshold=2.0)
+"""
 
 for step in result["alignment"]:
     print(step)
 
 print("\nSTATS:", result["stats"])
+"""
