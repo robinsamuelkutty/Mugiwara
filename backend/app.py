@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query,FastAPI,HTTPException
 from modules.Dyslexia.story import generate_dyslexia_story
-from modules.Dyslexia.compare import align_with_timestamps
+from modules.Dyslexia.compare import compare_text
 from modules.Dyslexia.rhyme import generate_rhyming_pair
 from pydantic import BaseModel
 from typing import List
@@ -35,7 +35,7 @@ def dyslexia_compare(
     data: DyslexiaCompareRequest,
     hesitation_threshold: float = 2.0
 ):
-    result = align_with_timestamps(data.model_dump(), hesitation_threshold)
+    result = compare_text(data.model_dump())
     return result["stats"]
 
 @app.get("/dyslexia/rhyme")
