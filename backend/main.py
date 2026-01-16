@@ -5,7 +5,7 @@ app = FastAPI()
 
 router = APIRouter(prefix="/dyslexia", tags=["Dyslexia"])
 
-@router.get("/story")
+@app.get("/dyslexia/story")
 def dyslexia_story(
     difficulty: str = Query("medium", description="easy | medium | hard"),
     age: int = Query(8, ge=3, le=15),

@@ -1,6 +1,6 @@
 "pip install fastapi[standard]"
 pip install pandas
-pip install -U google-genai
+"pip install -U google-genai"
 "pip install --upgrade google-api-python-client"
 pip install google
 
