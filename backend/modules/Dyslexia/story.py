@@ -33,7 +33,7 @@ DIFFICULTY_FILES = {
 DEFAULT_DIFFICULTY = "medium"
 WORDS_PER_STORY = 18
 TARGET_SENTENCES = 7
-MAX_ATTEMPTS = 4
+MAX_ATTEMPTS = 1
 
 # Start with a stable model
 MODEL_NAME = "gemini-2.5-flash"

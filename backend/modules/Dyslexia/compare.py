@@ -1,12 +1,6 @@
 from typing import Dict, Any, List, Optional
 
 def align_with_timestamps(data: Dict[str, Any], hesitation_threshold: float = 2.0) -> Dict[str, Any]:
-    """
-    Align target_text with transcribed_text using word-level Levenshtein.
-    Attach Whisper timestamps to aligned transcript words.
-    Also compute duration per word + hesitation gaps.
-    """
-
     target_words = data["target_text"].strip().split()
     trans_words = data["transcribed_text"].strip().split()
     timestamps = data.get("word_timestamps", [])
