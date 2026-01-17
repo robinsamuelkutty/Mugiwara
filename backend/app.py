@@ -151,6 +151,15 @@ Do not output anything else.
 
     return response.text.strip()
 
+@app.post("/dyscalculia/number_detector")
+async def detect_number(image: UploadFile = File(...)):
+    result = await analyze_dyscalculia_image(image)
+
+    return {
+        "filename": image.filename,
+        "result": result
+    }
+
 
 @app.post("/dyscalculia/question_generator")
 def generate_question(n:int):
@@ -230,7 +239,7 @@ def parse_gemini_json(response_text: str) -> Dict[str, Any]:
     except Exception:
         return {"raw_response": text}
 
-@app.post("/dyscalculia/number_detector")
+@app.post("/dyscalculia/problem_detector")
 async def number_detector(image: UploadFile = File(...)):
     img_bytes = await image.read()
 
