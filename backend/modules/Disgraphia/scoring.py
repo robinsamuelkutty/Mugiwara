@@ -85,6 +85,10 @@ def normalize_features(features: Dict, age: int) -> Dict:
     
     # Stroke thickness variance (higher = more pressure inconsistency)
     normalized["stroke_thickness_variance_norm"] = features.get("stroke_thickness_variance", 0)
+
+    normalized["vit_structural_irregularity_norm"] = features.get(
+    "vit_structural_irregularity", 0.0
+            ) 
     
     # Copy accuracy features (lower accuracy = higher risk)
     copy_acc = features.get("copy_accuracy_score", 0.5)
@@ -113,7 +117,8 @@ def calculate_risk_score(normalized_features: Dict, age: int) -> Tuple[float, Di
        "slant_variance_norm": 0.13,
        "stroke_thickness_variance_norm": 0.10,
        "copy_accuracy_deviation": 0.05,
-       "visual_semantic_mismatch": 0.10  # CLIP
+       "visual_semantic_mismatch": 0.10,  # CLIP
+       "vit_structural_irregularity_norm": 0.10,
     }
     
     component_scores = {}
@@ -226,7 +231,8 @@ def _get_feature_description(feature_name: str) -> str:
         "slant_variance_norm": "Inconsistent slant/tilt of letters",
         "stroke_thickness_variance_norm": "Inconsistent pen pressure or stroke thickness",
         "copy_accuracy_deviation": "Difficulty accurately copying the sentence",
-        "visual_semantic_mismatch": "Difficulty visually reproducing the intended sentence"
+        "visual_semantic_mismatch": "Difficulty visually reproducing the intended sentence",
+        "vit_structural_irregularity_norm": "Irregular handwriting visual structure and stroke rhythm"
     }
     
     return descriptions.get(feature_name, feature_name)

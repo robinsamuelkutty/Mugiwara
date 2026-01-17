@@ -1,3 +1,4 @@
+from backend.modules.Disgraphia.vit_features import extract_vit_embedding, vit_structure_score
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form,Query
 from modules.Dyslexia.story import generate_dyslexia_story
 from modules.Dyslexia.compare import compare_text
@@ -393,6 +394,10 @@ async def screening_endpoint(
         else:
             semantic_alignment = "High"
 
+        logger.info("Stage 2.75: vision transformer structure analysis.")
+        vit_embedding = extract_vit_embedding(clip_image)
+        vit_irregularity_score = vit_structure_score(vit_embedding)
+
         logger.info("Stage 3: Segmentation...")
         segmentation_data = extract_segmentation_features(processed_image)
 
@@ -405,6 +410,7 @@ async def screening_endpoint(
         accuracy = calculate_copy_accuracy(expected_sentence, extracted_text)
 
         logger.info("Stage 6: Report generation...")
+        features["vit_structural_irregularity"] = vit_irregularity_score
         report = generate_report(features, accuracy, age)
 
         return JSONResponse({
