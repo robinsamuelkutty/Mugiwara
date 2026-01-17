@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query,FastAPI,HTTPException
+from fastapi import UploadFile, Query,FastAPI,HTTPException,File
 from modules.Dyslexia.story import generate_dyslexia_story
 from modules.Dyslexia.compare import compare_text
 from modules.Dyslexia.rhyme import generate_rhyming_pair
@@ -8,9 +8,15 @@ from modules.Dyscalculia.question import fetch_questions
 from modules.Dyslexia.workflow import run_full_dyslexia_workflow
 from modules.Dyslexia.schemas import DyslexiaRunRequest, DyslexiaRunResponse,DyslexiaLevelRequest,DyslexiaFullEvaluateRequest
 from modules.Dyslexia.Langgraph.graph_builder import build_dyslexia_graph
+from modules.Dyscalculia.written_ext_gem import client
 from pydantic import BaseModel
-from typing import List
+from typing import List,Dict,Any
 import requests
+import cv2
+import numpy as np
+import json
+import base64
+
 
 print("This app is running")
 
@@ -98,6 +104,53 @@ def generate_number(n:int):
     clean = response.replace("\n", " ")
     return clean
 
+async def analyze_dyscalculia_image(image: UploadFile) -> str:
+    prompt = """
+You are analyzing a dyscalculia screening test.
+
+The image contains digits written by a child as part of the screening.
+Your task is to judge whether the writing pattern shows signs consistent with dyscalculia.
+
+EVALUATE BASED ON:
+- frequent digit reversals or mirroring
+- inconsistent number formation
+- confusion between similar digits (e.g., 2/5, 6/9, 3/8)
+- irregular sequencing or missing digits
+- poor number representation that suggests number-symbol difficulty
+
+IMPORTANT:
+This is only a screening decision based on this single sample (not a diagnosis).
+
+OUTPUT FORMAT (STRICT):
+Return exactly 2 lines:
+
+Line 1: One label only:
+LIKELY_DYSCALCULIA
+or
+UNLIKELY_DYSCALCULIA
+
+Line 2: Reason in 1-2 short sentences, referring only to what is visible in the image.
+
+Do not output anything else.
+"""
+
+    # read file bytes
+    img_bytes = await image.read()
+
+    # send bytes directly (no file path)
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=[
+            prompt,
+            {
+                "mime_type": image.content_type,  # like "image/png" or "image/jpeg"
+                "data": img_bytes
+            }
+        ]
+    )
+
+    return response.text.strip()
+
 
 @app.post("/dyscalculia/question_generator")
 def generate_question(n:int):
@@ -126,6 +179,89 @@ def full_eval(payload: DyslexiaFullEvaluateRequest):
         return run_full_dyslexia_workflow(payload)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+MODEL_NAME = "gemini-2.5-flash"
+PROMPT = """
+You are analyzing a handwritten number image for a dyscalculia screening test.
+
+Step 1: Extract ALL digits/numbers visible in the image (left to right).
+Step 2: Identify writing patterns that may indicate difficulty with number formation.
+
+Look for:
+- digit reversals (2, 3, 5, 6, 7, 9)
+- mirror writing
+- digit substitutions (e.g., 6↔9, 1↔7, 3↔8)
+- inconsistent spacing or ordering
+- unclear or malformed digits
+
+IMPORTANT:
+- Do NOT give a medical diagnosis.
+- Output only a screening-style risk assessment.
+
+Output ONLY raw JSON (no markdown fences) in this exact format:
+{
+  "digits": ["..."],
+  "complete_number": "...",
+  "digit_analysis": [
+    {"digit": "...", "confidence": "high/medium/low", "issues": ["reversal/malformed/unclear/none"], "notes": "..."}
+  ],
+  "observations": ["..."],
+  "screening_risk": {
+    "risk_level": "LOW" | "MEDIUM" | "HIGH",
+    "reason": "short explanation"
+  }
+}
+"""
+
+
+def parse_gemini_json(response_text: str) -> Dict[str, Any]:
+    """Parse JSON from Gemini output safely"""
+    text = (response_text or "").strip()
+
+    # remove markdown fences if any
+    if text.startswith("```"):
+        text = text.replace("```json", "").replace("```", "").strip()
+
+    try:
+        start = text.index("{")
+        end = text.rindex("}") + 1
+        json_str = text[start:end]
+        return json.loads(json_str)
+    except Exception:
+        return {"raw_response": text}
+
+@app.post("/dyscalculia/number_detector")
+async def number_detector(image: UploadFile = File(...)):
+    img_bytes = await image.read()
+
+    if not img_bytes:
+        return {"error": "Empty file uploaded"}
+
+    # Use uploaded content-type if possible
+    mime_type = image.content_type or "image/jpeg"
+
+    # Gemini request
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=[
+            PROMPT,
+            {
+                "inline_data": {
+                    "mime_type": mime_type,
+                    "data": base64.b64encode(img_bytes).decode("utf-8"),
+                }
+            },
+        ],
+    )
+
+    result = parse_gemini_json(response.text)
+
+    return {
+        "filename": image.filename,
+        "mime_type": mime_type,
+        "result": result
+    }
+
 
 ### Langgraph
 
