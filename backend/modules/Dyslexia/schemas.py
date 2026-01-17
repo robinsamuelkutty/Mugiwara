@@ -75,11 +75,20 @@ class DyslexiaCompareRequest(BaseModel):
 
 class DyslexiaLevelRequest(BaseModel):
     user_id: Optional[str] = None
-    level: int = 1
+    level: int
 
     target_text: str
     transcribed_text: str
     word_timestamps: List[WordTimestamp] = Field(default_factory=list)
+
+    # ✅ frontend persistence
+    level_scores: Dict[int, float] = Field(default_factory=dict)
+    level_results: Dict[int, Dict[str, Any]] = Field(default_factory=dict)
+
+    # ✅ dysgraphia inputs for merged graph
+    age: int = 8
+    dysgraphia_expected_text: Optional[str] = ""
+    dysgraphia_image_base64: Optional[str] = None
 
 class DyslexiaFullEvaluateRequest(BaseModel):
     user_id: Optional[str] = None

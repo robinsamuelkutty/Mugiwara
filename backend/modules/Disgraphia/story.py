@@ -6,24 +6,10 @@ from dotenv import load_dotenv
 import pandas as pd
 from google import genai
 from pathlib import Path
-
-# ────────────────────────────────────────────────
-# CONFIGURATION
-# ────────────────────────────────────────────────
-
-# Recommended: set environment variable GEMINI_API_KEY
-# Windows CMD: setx GEMINI_API_KEY "YOUR_KEY"
-
 env_path = Path(__file__).resolve().parent.parent.parent/".env"
 load_dotenv(env_path)  # loads .env into environment variables
 
 API_KEY = os.getenv("GEMINI_API_KEY")
-
-if not API_KEY:
-    # fallback (NOT recommended)
-    raise ValueError("GEMINI_API_KEY not found in .env file")
-
-# Difficulty CSV files (must contain a column named "word")
 DIFFICULTY_FILES = {
     "easy": "easy.csv",
     "medium": "medium.csv",
@@ -40,11 +26,6 @@ MODEL_NAME = "gemini-2.5-flash"
 
 # Create Gemini client once
 client = genai.Client(api_key=API_KEY)
-
-
-# ────────────────────────────────────────────────
-# HELPERS
-# ────────────────────────────────────────────────
 
 def load_words(difficulty: str) -> list[str]:
     """Load words from the corresponding difficulty CSV file"""
@@ -150,46 +131,67 @@ Examples:
 # MAIN STORY GENERATOR
 # ────────────────────────────────────────────────
 
-def generate_dyslexia_story(
+def generate_dysgraphia_story(
     theme: str = None,
     difficulty: str = DEFAULT_DIFFICULTY,
     words_count: int = WORDS_PER_STORY,
     target_sentences: int = TARGET_SENTENCES
 ) -> dict:
     """
-    Generate a short story where EVERY sentence contains at least ONE word
-    from the selected difficulty word list.
-
-    Returns:
-    {
-      'theme': str,
-      'story': str,
-      'success': bool,
-      'used_words': list[str],
-      'attempts': int
-    }
+    Generate a dysgraphia-trigger story.
+    Each sentence MUST include at least one trigger word/pattern.
     """
 
     if theme is None:
         theme = generate_dynamic_theme(age=8, gender="boy")
 
-
-    # Load and sample words
+    # Load base difficulty words
     all_words = load_words(difficulty)
     selected_words = random.sample(all_words, min(words_count, len(all_words)))
 
-    words_str = ", ".join(f'"{w}"' for w in selected_words)
-    words_set = set(w.lower() for w in selected_words)
+    # Dysgraphia trigger patterns (very important)
+    dysgraphia_words = [
+        # b/d confusion
+        "bed", "bad", "dad", "dab", "bid", "did",
+        # p/q confusion
+        "pop", "pip", "quip", "quip", "quip",
+        # n/u confusion
+        "sun", "fun", "run", "nun",
+        # common spelling mix-ups
+        "from", "form", "was", "saw", "there", "their",
+        # double letters (spacing + repeated strokes)
+        "balloon", "happy", "little", "rabbit", "coffee",
+        # tricky handwriting shapes
+        "zigzag", "swim", "minimum", "mummy"
+    ]
 
-    prompt = f"""You are a gentle storyteller who writes for easy reading.
+    # Mix both sets
+    combined_words = list(set(selected_words + dysgraphia_words))
+    random.shuffle(combined_words)
+
+    # keep only a reasonable amount
+    combined_words = combined_words[:words_count]
+
+    words_str = ", ".join(f'"{w}"' for w in combined_words)
+    words_set = set(w.lower() for w in combined_words)
+
+    prompt = f"""
+You are creating a short writing practice story for kids.
+This story is meant to SCREEN for dysgraphia (writing difficulty).
 
 STRICT RULES:
 1. EVERY sentence MUST contain at least ONE word from this list: {words_str}
-2. Use very SHORT sentences only. Maximum 8-10 words each.
-3. Use simple, clear words.
-4. Write a short story: only {target_sentences} to {target_sentences + 3} sentences.
-5. Make the story kind, fun and positive.
-6. Never mention the word list, dyslexia, or any special rules.
+2. Sentences must be SHORT (8 to 10 words max).
+3. Use clear simple language for children.
+4. Total sentences: {target_sentences} to {target_sentences + 3}.
+5. Include punctuation properly: commas, full stops, and at least ONE question sentence.
+6. Include at least ONE sentence with:
+   - a double-letter word (like "happy", "little")
+   - a b/d confusion word (like "bed", "dad")
+   - a from/form or was/saw type word
+7. Make it copy-writing friendly (kids will WRITE it).
+8. Keep it positive, fun, and safe.
+9. Never mention dysgraphia or the word list.
 
 Theme: {theme}
 
@@ -210,10 +212,6 @@ Output ONLY valid JSON in this exact format:
             )
 
             raw = (response.text or "").strip()
-
-            # Debug (enable if needed)
-            # print("\nRAW OUTPUT:\n", raw)
-
             data = extract_json(raw)
 
             full_story = str(data.get("story", "")).strip()
@@ -228,16 +226,24 @@ Output ONLY valid JSON in this exact format:
                 if isinstance(s, str) and not any(word in s.lower() for word in words_set)
             ]
 
-            if not missing and full_story:
+            # Extra validation: ensure required dysgraphia triggers exist
+            required_checks = {
+                "double_letter": any(re.search(r"(ll|pp|tt|ff|oo|ee)", s.lower()) for s in sentences),
+                "bd_word": any(any(w in s.lower() for w in ["bed", "bad", "dad", "dab", "did"]) for s in sentences),
+                "confusion_pair": any(any(w in s.lower() for w in ["from", "form", "was", "saw"]) for s in sentences),
+                "question": any(s.strip().endswith("?") for s in sentences),
+            }
+
+            if not missing and full_story and all(required_checks.values()):
                 return {
                     "theme": theme,
                     "story": full_story,
                     "success": True,
-                    "used_words": selected_words,
+                    "used_words": combined_words,
                     "attempts": attempt
                 }
 
-            print(f"Attempt {attempt}: {len(missing)} sentences missing words → retrying")
+            print(f"Attempt {attempt}: missing={len(missing)}, checks={required_checks}")
             last_story = full_story if full_story else last_story
 
         except Exception as e:
@@ -247,7 +253,7 @@ Output ONLY valid JSON in this exact format:
         "theme": theme,
         "story": last_story,
         "success": False,
-        "used_words": selected_words,
+        "used_words": combined_words,
         "attempts": MAX_ATTEMPTS
     }
 
@@ -272,7 +278,7 @@ if __name__ == "__main__":
     print("Dyslexia Story Generator (google.genai)")
     print("--------------------------------------\n")
 
-    result = generate_dyslexia_story(
+    result = generate_dysgraphia_story(
         difficulty="medium",
         # theme="A small puppy finds a new friend"
     )

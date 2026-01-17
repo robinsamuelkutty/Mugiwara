@@ -3,14 +3,15 @@ from modules.Dyslexia.story import generate_dyslexia_story
 from modules.Dyslexia.compare import compare_text
 from modules.Dyslexia.rhyme import generate_rhyming_pair
 from modules.Dyslexia.nonesense import nonesense_generator
-from modules.Dyscalculia.symbol_generator import get_dyscalculia_inducing_letters
+from modules.Dyscalculia.symbol_generator import get_dyscalculia_inducing_digits
 from modules.Dyscalculia.question import fetch_questions
 from modules.Dyslexia.workflow import run_full_dyslexia_workflow
 from modules.Dyslexia.schemas import DyslexiaRunRequest, DyslexiaRunResponse,DyslexiaLevelRequest,DyslexiaFullEvaluateRequest
-from modules.Dyslexia.Langgraph.graph_builder import build_dyslexia_graph
+from modules.Dyslexia.Langgraph.graph import build_dyslexia_langgraph
 from modules.Dyscalculia.written_ext_gem import client
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from modules.Disgraphia.story import generate_dysgraphia_story
 from pydantic import BaseModel
 import logging
 from modules.Disgraphia.preprocessor import preprocess_for_ocr
@@ -66,10 +67,6 @@ def dyslexia_story(
 ):
     return generate_dyslexia_story(difficulty=difficulty)
 
-@app.get("/")
-def welcome():
-    return "Hello World!"
-
 @app.post("/dyslexia/compare")
 def dyslexia_compare(data: DyslexiaCompareRequest):
     result = compare_text(data.model_dump())
@@ -123,7 +120,7 @@ def generate(req: QueryRequest):
 
 @app.post("/dyscalculia/number_generator")
 def generate_number(n:int):
-    response = get_dyscalculia_inducing_letters(n)
+    response = get_dyscalculia_inducing_digits(n)
     clean = response.replace("\n", " ")
     return clean
 
@@ -171,15 +168,6 @@ Do not output anything else.
 
     return response.text.strip()
 
-
-@app.post("/dyscalculia/number_detector")
-async def detect_number(image: UploadFile = File(...)):
-    result = await analyze_dyscalculia_image(image)
-
-    return {
-        "filename": image.filename,
-        "result": result
-    }
 
 @app.post("/dyscalculia/number_detector")
 async def detect_number(image: UploadFile = File(...)):
@@ -304,20 +292,38 @@ async def number_detector(image: UploadFile = File(...)):
 
 ### Langgraph
 
-graph = build_dyslexia_graph()
+graph = build_dyslexia_langgraph()
 
 @app.post("/dyslexia/langgraph-level")
 def run_graph_level(payload: DyslexiaLevelRequest):
+
+    # decode dysgraphia image if provided
+    dysgraphia_bytes = None
+    if payload.dysgraphia_image_base64:
+        try:
+            dysgraphia_bytes = base64.b64decode(payload.dysgraphia_image_base64)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid dysgraphia_image_base64")
+
     state = {
+        # dyslexia
         "user_id": payload.user_id,
         "current_level": payload.level,
         "target_text": payload.target_text,
         "transcribed_text": payload.transcribed_text,
         "word_timestamps": [wt.model_dump() for wt in payload.word_timestamps],
-        "level_scores": {},      # ⚠️ later we will fix persistence
-        "level_results": {},     # ⚠️ later we will fix persistence
+
+        # ✅ persistence (Option A)
+        "level_scores": payload.level_scores or {},
+        "level_results": payload.level_results or {},
+
         "logs": [],
-        "features": {}
+        "features": {},
+
+        # dysgraphia (used only after verifier)
+        "age": payload.age,
+        "dysgraphia_expected_text": payload.dysgraphia_expected_text or "",
+        "dysgraphia_image_bytes": dysgraphia_bytes,
     }
 
     result = graph.invoke(state)
@@ -325,6 +331,15 @@ def run_graph_level(payload: DyslexiaLevelRequest):
 
 
 ### Dysgraphia
+
+@app.get("/dysgraphia/story")
+def dyslexia_story(
+    difficulty: str = Query("medium", description="easy | medium | hard"),
+    age: int = Query(8, ge=3, le=15),
+    gender: str | None = Query(None, description="boy | girl | neutral"),
+    theme: str | None = Query(None)
+):
+    return generate_dysgraphia_story(difficulty=difficulty)
 
 class ScreeningRequest(BaseModel):
     age: int

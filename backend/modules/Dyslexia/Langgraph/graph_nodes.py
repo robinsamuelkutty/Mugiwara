@@ -1,6 +1,12 @@
 from __future__ import annotations
 from typing import Dict, Any
-
+from modules.Disgraphia.preprocessor import preprocess_for_ocr
+from modules.Disgraphia.segmentation import extract_segmentation_features
+from modules.Disgraphia.features import extract_all_handwriting_features
+from modules.Disgraphia.ocr import extract_text, prepare_image_for_clip
+from modules.Disgraphia.accuracy import calculate_copy_accuracy, get_accuracy_features
+from modules.Disgraphia.clip_similarity import compute_clip_similarity
+from modules.Disgraphia.scoring import generate_report
 from modules.Dyslexia.compare import compare_text
 from modules.Dyslexia.verifier import verify_with_gemini
 from modules.Dyslexia.error_reasoner import reason_negative_errors_with_gemini
@@ -20,20 +26,19 @@ def extract_negative_errors(word_status: list) -> list:
     return errors
 
 
-def node_compare_and_score(state: Dict[str, Any]) -> Dict[str, Any]:
-    level = state["current_level"]
+def node_compare_and_score(state: DyslexiaGraphState) -> DyslexiaGraphState:
+    level = state.current_level
 
     data = {
-        "target_text": state["target_text"],
-        "transcribed_text": state["transcribed_text"],
-        "word_timestamps": state.get("word_timestamps", []),
+        "target_text": state.target_text,
+        "transcribed_text": state.transcribed_text,
+        "word_timestamps": state.word_timestamps,
     }
 
     result = compare_text(data)
     word_status = result.get("word_status", [])
     total = len(word_status)
 
-    # accuracy
     if total == 0:
         accuracy = 0.0
     else:
@@ -48,27 +53,32 @@ def node_compare_and_score(state: Dict[str, Any]) -> Dict[str, Any]:
 
     accuracy = round(accuracy, 2)
 
-    # init dicts
-    state.setdefault("level_scores", {})
-    state.setdefault("level_results", {})
-    state.setdefault("features", {})
-    state.setdefault("logs", [])
+    # init
+    if state.level_scores is None:
+        state.level_scores = {}
+    if state.level_results is None:
+        state.level_results = {}
+    if state.features is None:
+        state.features = {}
+    if state.logs is None:
+        state.logs = []
 
-    state["level_scores"][level] = accuracy
+    state.level_scores[level] = accuracy
 
     negative_errors = extract_negative_errors(word_status)
 
-    state["level_results"][level] = {
-        "target_text": state["target_text"],
-        "transcribed_text": state["transcribed_text"],
+    state.level_results[level] = {
+        "target_text": state.target_text,
+        "transcribed_text": state.transcribed_text,
         "accuracy": accuracy,
         "distance": result.get("distance"),
         "word_status": word_status,
         "negative_errors": negative_errors,
     }
 
-    state["logs"].append(f"Level {level} scored: {accuracy}%")
+    state.logs.append(f"Level {level} scored: {accuracy}%")
     return state
+
 
 
 def node_decide_route(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -178,3 +188,98 @@ def node_error_reasoner(state: Dict[str, Any]) -> Dict[str, Any]:
     state["message"] = f"Level {level} failed. Proceeding to final verification."
     state["logs"].append(state["message"])
     return state
+
+def node_dysgraphia_preprocess(state: Dict[str, Any]) -> Dict[str, Any]:
+    state.setdefault("logs", [])
+    state.setdefault("dysgraphia_features", {})
+    state.setdefault("dysgraphia_segmentation", {})
+    state.setdefault("dysgraphia_accuracy", {})
+    state.setdefault("dysgraphia_report", {})
+
+    if not state.get("dysgraphia_image_bytes"):
+        state["dysgraphia_final_result"] = "INCONCLUSIVE"
+        state["logs"].append("Dysgraphia skipped: image_bytes missing.")
+        return state
+
+    binary = preprocess_for_ocr(state["dysgraphia_image_bytes"])
+    state["dysgraphia_binary_image"] = binary
+    state["logs"].append("Dysgraphia preprocessing complete.")
+    return state
+
+
+def node_dysgraphia_segmentation(state: Dict[str, Any]) -> Dict[str, Any]:
+    seg = extract_segmentation_features(state["dysgraphia_binary_image"])
+    state["dysgraphia_segmentation"] = seg
+    state["logs"].append("Dysgraphia segmentation complete.")
+    return state
+
+
+def node_dysgraphia_features(state: Dict[str, Any]) -> Dict[str, Any]:
+    feats = extract_all_handwriting_features(
+        state["dysgraphia_binary_image"],
+        state["dysgraphia_segmentation"]
+    )
+    state["dysgraphia_features"] = feats
+    state["logs"].append("Dysgraphia handwriting features extracted.")
+    return state
+
+
+def node_dysgraphia_ocr(state: Dict[str, Any]) -> Dict[str, Any]:
+    text = extract_text(state["dysgraphia_binary_image"])
+    state["dysgraphia_extracted_text"] = text
+    state["logs"].append("Dysgraphia OCR extraction complete.")
+    return state
+
+
+def node_dysgraphia_accuracy(state: Dict[str, Any]) -> Dict[str, Any]:
+    expected = state.get("dysgraphia_expected_text", "")
+    extracted = state.get("dysgraphia_extracted_text", "")
+
+    acc = calculate_copy_accuracy(expected, extracted)
+    acc_feats = get_accuracy_features(acc)
+
+    state["dysgraphia_accuracy"] = acc
+
+    # merge accuracy features into handwriting features dict
+    state.setdefault("dysgraphia_features", {})
+    state["dysgraphia_features"].update(acc_feats)
+
+    state["logs"].append("Dysgraphia copy accuracy computed.")
+    return state
+
+
+def node_dysgraphia_clip(state: Dict[str, Any]) -> Dict[str, Any]:
+    expected = state.get("dysgraphia_expected_text", "")
+
+    img_pil = prepare_image_for_clip(state["dysgraphia_binary_image"])
+    sim = compute_clip_similarity(img_pil, expected)
+
+    state["dysgraphia_clip_similarity"] = float(sim)
+    state.setdefault("dysgraphia_features", {})
+    state["dysgraphia_features"]["clip_similarity_score"] = float(sim)
+
+    state["logs"].append(f"Dysgraphia CLIP similarity computed: {sim:.4f}")
+    return state
+
+
+def node_dysgraphia_scoring(state: Dict[str, Any]) -> Dict[str, Any]:
+    report = generate_report(
+        features=state.get("dysgraphia_features", {}),
+        accuracy=state.get("dysgraphia_accuracy", {}),
+        age=state.get("age", 8)
+    )
+
+    state["dysgraphia_report"] = report
+
+    risk_level = report.get("risk_level", "Moderate")
+
+    if risk_level == "Low":
+        state["dysgraphia_final_result"] = "NORMAL"
+    elif risk_level == "High":
+        state["dysgraphia_final_result"] = "RISK_DYSGRAPHIA"
+    else:
+        state["dysgraphia_final_result"] = "INCONCLUSIVE"
+
+    state["logs"].append(f"Dysgraphia final result: {state['dysgraphia_final_result']}")
+    return state
+
