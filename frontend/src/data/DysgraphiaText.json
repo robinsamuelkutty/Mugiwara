@@ -1,0 +1,91 @@
+{
+  "age_5": {
+    "age": 5,
+    "tasks": [
+      "I see a cat.",
+      "The sun is hot.",
+      "I like my toy."
+    ]
+  },
+  "age_6": {
+    "age": 6,
+    "tasks": [
+      "The dog runs fast.",
+      "I play with my ball.",
+      "My mom reads a book."
+    ]
+  },
+  "age_7": {
+    "age": 7,
+    "tasks": [
+      "The small bird can fly high.",
+      "I go to school every day.",
+      "My friend likes to draw pictures."
+    ]
+  },
+  "age_8": {
+    "age": 8,
+    "tasks": [
+      "the cat sat on the mat.",
+      "The little boy is playing in the park.",
+      "I enjoy reading stories before bedtime.",
+      "My teacher asked me to write neatly."
+    ]
+  },
+  "age_9": {
+    "age": 9,
+    "tasks": [
+      "Yesterday, I helped my mother clean the house.",
+      "The dog barked loudly when it saw a stranger.",
+      "I try to keep my handwriting clear and neat."
+    ]
+  },
+  "age_10": {
+    "age": 10,
+    "tasks": [
+      "During the holidays, we visited our grandparents in the village.",
+      "The science teacher explained the experiment very clearly.",
+      "I finished my homework carefully and submitted it on time."
+    ]
+  },
+  "age_11": {
+    "age": 11,
+    "tasks": [
+      "Although the weather was cloudy, we continued playing outside.",
+      "Writing neatly helps others understand my ideas better.",
+      "I practice handwriting daily to improve my speed and accuracy."
+    ]
+  },
+  "age_12": {
+    "age": 12,
+    "tasks": [
+      "After completing my homework, I revised all the lessons for the test.",
+      "Good handwriting requires patience, control, and regular practice.",
+      "The teacher appreciated my effort and encouraged me to do better."
+    ]
+  },
+  "age_13": {
+    "age": 13,
+    "tasks": [
+      "Effective communication depends on clear thinking and proper writing skills.",
+      "Despite making mistakes, I continue to improve through consistent practice.",
+      "Writing long answers neatly within limited time can be challenging."
+    ]
+  },
+  "age_14": {
+    "age": 14,
+    "tasks": [
+      "Developing strong writing skills is essential for academic success and confidence.",
+      "I organize my thoughts carefully before writing detailed answers in exams.",
+      "Consistent handwriting practice improves both speed and legibility over time."
+    ]
+  },
+  "age_15": {
+    "age": 15,
+    "tasks": [
+      "Clear and structured handwriting reflects a student’s ability to organize thoughts logically.",
+      "Managing time effectively while writing long answers is a crucial academic skill.",
+      "Regular self-evaluation helps identify handwriting weaknesses and areas for improvement."
+    ]
+  }
+}

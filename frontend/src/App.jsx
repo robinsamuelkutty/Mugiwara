@@ -1,10 +1,16 @@
 import React from 'react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import WritingTest from './pages/WritingTest'
 
 function App() {
   return (
-    <div className='w-screen min-h-screen text-white bg-black flex items-center justify-center'>
-      hello
-    </div>
+   <BrowserRouter>
+   <div>
+   <Routes>
+    <Route path="/" element={<WritingTest />} />
+   </Routes>
+   </div>
+   </BrowserRouter>
   )
 }
 
