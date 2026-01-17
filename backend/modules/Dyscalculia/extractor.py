@@ -1,98 +1,158 @@
+import base64
+import json
 import os
-import re
+from pathlib import Path
+from typing import Dict, Any
+
 from dotenv import load_dotenv
 from google import genai
-from pathlib import Path
-env_path = Path(__file__).resolve().parent.parent.parent/".env"
-load_dotenv(env_path)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if not GEMINI_API_KEY:
-    raise ValueError("❌ GEMINI_API_KEY not found in .env")
-
-client = genai.Client(api_key=GEMINI_API_KEY)
-
-MODEL_NAME = "gemini-2.5-flash"
 
 
-def compute_answer(question: str) -> int:
+class NumberExtractor:
     """
-    Supports simple addition like: '18 + 27'
+    Extract numbers from handwritten images using Google Gemini API
+    Optimized for dyscalculia handwriting
     """
-    q = question.replace(" ", "")
-    if "+" not in q:
-        raise ValueError("Only addition is supported (example: 18 + 27)")
-    a, b = q.split("+")
-    return int(a) + int(b)
 
+    def __init__(self):
+        # Load .env from backend/.env
+        env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+        load_dotenv(env_path)
 
-def extract_digits_only(text: str):
-    """
-    Extract first integer from model output.
-    """
-    match = re.search(r"\d+", text)
-    if match:
-        return int(match.group())
-    return None
+        self.api_key = os.getenv("GEMINI_API_KEY")
+        if not self.api_key:
+            raise ValueError("GEMINI_API_KEY not found in .env")
 
+        self.client = genai.Client(api_key=self.api_key)
+        self.model_name = "gemini-2.5-flash"
 
-def check_answer_from_image(image_path: str, question: str):
-    correct = compute_answer(question)
+    def load_image_base64(self, image_path: str) -> str:
+        """Load and encode image to base64"""
+        with open(image_path, "rb") as f:
+            return base64.b64encode(f.read()).decode("utf-8")
 
-    prompt = f"""
-You are checking a dyscalculia screening test.
+    def extract_numbers(self, image_path: str) -> Dict[str, Any]:
+        """
+        Extract numbers from handwritten image using Gemini Vision
+        Returns extracted numbers and analysis
+        """
 
-Question: {question}
-Correct Answer: {correct}
+        prompt = """
+You are analyzing a handwritten number image for a dyscalculia screening test.
 
-The child wrote the answer in the image.
+Step 1: Extract ALL digits/numbers visible in the image (left to right).
+Step 2: Identify writing patterns that may indicate difficulty with number formation.
 
-TASKS:
-1) Extract ONLY the written answer number from the image.
-2) Compare it with the correct answer.
-3) Return the result in EXACTLY this format:
+Look for:
+- digit reversals (2, 3, 5, 6, 7, 9)
+- mirror writing
+- digit substitutions (e.g., 6↔9, 1↔7, 3↔8)
+- inconsistent spacing or ordering
+- unclear or malformed digits
 
-WrittenAnswer: <number>
-CorrectAnswer: <number>
-Result: Correct OR Wrong
-Explanation: <one short sentence>
+IMPORTANT:
+- Do NOT give a medical diagnosis.
+- Output only a screening-style risk assessment.
 
-STRICT RULES:
-- WrittenAnswer must be digits only
-- Explanation must be short and simple
-- No extra lines other than the 4 lines
+Output ONLY raw JSON (no markdown fences) in this exact format:
+{
+  "digits": ["..."],
+  "complete_number": "...",
+  "digit_analysis": [
+    {"digit": "...", "confidence": "high/medium/low", "issues": ["reversal/malformed/unclear/none"], "notes": "..."}
+  ],
+  "observations": ["..."],
+  "screening_risk": {
+    "risk_level": "LOW" | "MEDIUM" | "HIGH",
+    "reason": "short explanation"
+  }
+}
 """
 
-    uploaded = client.files.upload(file=image_path)
+        if not os.path.exists(image_path):
+            return {"error": f"Image not found: {image_path}"}
 
-    response = client.models.generate_content(
-        model=MODEL_NAME,
-        contents=[prompt.strip(), uploaded]
-    )
+        with open(image_path, "rb") as f:
+            img_bytes = f.read()
 
-    return response.text.strip()
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=[
+                prompt,
+                {
+                    "inline_data": {
+                        "mime_type": "image/jpeg",
+                        "data": base64.b64encode(img_bytes).decode("utf-8"),
+                    }
+                },
+            ],
+        )
+
+        response_text = (response.text or "").strip()
+
+        # Remove markdown fences if Gemini adds them
+        if response_text.startswith("```"):
+            response_text = response_text.replace("```json", "").replace("```", "").strip()
+
+        # Extract JSON from response
+        try:
+            start = response_text.index("{")
+            end = response_text.rindex("}") + 1
+            json_str = response_text[start:end]
+            return json.loads(json_str)
+        except Exception:
+            return {"raw_response": response_text}
+
+    def process_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
+        """Pretty print extraction results"""
+        print("\n" + "=" * 70)
+        print("EXTRACTION RESULTS")
+        print("=" * 70)
+
+        if "complete_number" in result:
+            print(f"\n✓ Extracted Number: {result.get('complete_number')}")
+            print(f"  Digits: {' '.join(result.get('digits', []))}")
+
+            if "observations" in result:
+                print("\n  Observations:")
+                for obs in result.get("observations", []):
+                    print(f"   - {obs}")
+
+            if "screening_risk" in result:
+                risk = result["screening_risk"]
+                print("\n  Screening Risk:")
+                print(f"   - Level: {risk.get('risk_level')}")
+                print(f"   - Reason: {risk.get('reason')}")
+        else:
+            print("\nRaw Response:")
+            print(result)
+
+        return result
+
+    def save_results(self, result: Dict[str, Any], output_file: str = "extraction_results.json"):
+        """Save results to JSON file"""
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(result, f, indent=2)
+        print(f"\n✓ Results saved to: {output_file}")
 
 
 def main():
-    print("\n=== Gemini Math Image Answer Checker ===\n")
+    import sys
 
-    # Example values (change these)
-    image_path = "answer.jpg"
-    question = "14 + 41"
+    print("\n" + "█" * 70)
+    print("GOOGLE GEMINI API - NUMBER EXTRACTION")
+    print("█" * 70)
 
-    result_text = check_answer_from_image(image_path, question)
+    if len(sys.argv) > 1:
+        image_path = sys.argv[1]
+    else:
+        image_path = input("Enter image path: ").strip()
 
-    print("\n📌 Gemini Output:\n")
-    print(result_text)
-
-    # Optional: local verification (extra safety)
-    correct = compute_answer(question)
-    written = extract_digits_only(result_text)
-
-    if written is not None:
-        print("\n✅ Local Verification:")
-        print("Written Answer:", written)
-        print("Correct Answer:", correct)
-        print("Match:", written == correct)
+    extractor = NumberExtractor()
+    result = extractor.extract_numbers(image_path)
+    extractor.process_result(result)
+    extractor.save_results(result)
+    print("\n✓ COMPLETE")
 
 
 if __name__ == "__main__":

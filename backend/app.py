@@ -7,6 +7,7 @@ from modules.Dyscalculia.symbol_generator import get_dyscalculia_inducing_letter
 from modules.Dyscalculia.question import fetch_questions
 from modules.Dyslexia.workflow import run_full_dyslexia_workflow
 from modules.Dyslexia.schemas import DyslexiaRunRequest, DyslexiaRunResponse,DyslexiaLevelRequest,DyslexiaFullEvaluateRequest
+from modules.Dyslexia.Langgraph.graph_builder import build_dyslexia_graph
 from pydantic import BaseModel
 from typing import List
 import requests
@@ -103,19 +104,19 @@ def generate_question(n:int):
     response = fetch_questions(n)
     return response
 
-#### Langchain
+#### simple fast api
 
 @app.post("/dyslexia/run-test", response_model=DyslexiaRunResponse)
 def run_dyslexia_test(payload: DyslexiaRunRequest):
     try:
-        return run_dyslexia_workflow(payload)
+        return run_full_dyslexia_workflow(payload)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/dyslexia/level-evaluate", response_model=DyslexiaRunResponse)
 def run_dyslexia_test(payload: DyslexiaLevelRequest):
     try:
-        return run_dyslexia_workflow(payload)
+        return run_full_dyslexia_workflow(payload)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -125,3 +126,24 @@ def full_eval(payload: DyslexiaFullEvaluateRequest):
         return run_full_dyslexia_workflow(payload)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+### Langgraph
+
+graph = build_dyslexia_graph()
+
+@app.post("/dyslexia/langgraph-level")
+def run_graph_level(payload: DyslexiaLevelRequest):
+    state = {
+        "user_id": payload.user_id,
+        "current_level": payload.level,
+        "target_text": payload.target_text,
+        "transcribed_text": payload.transcribed_text,
+        "word_timestamps": [wt.model_dump() for wt in payload.word_timestamps],
+        "level_scores": {},      # ⚠️ later we will fix persistence
+        "level_results": {},     # ⚠️ later we will fix persistence
+        "logs": [],
+        "features": {}
+    }
+
+    result = graph.invoke(state)
+    return result

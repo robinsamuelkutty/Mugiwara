@@ -1,0 +1,71 @@
+{
+  "digits": [
+    "1",
+    "4",
+    "4",
+    "1",
+    "2",
+    "4"
+  ],
+  "complete_number": "144124",
+  "digit_analysis": [
+    {
+      "digit": "1",
+      "confidence": "high",
+      "issues": [
+        "none"
+      ],
+      "notes": "Clearly formed."
+    },
+    {
+      "digit": "4",
+      "confidence": "high",
+      "issues": [
+        "none"
+      ],
+      "notes": "Formed with an open top, consistent style throughout the image."
+    },
+    {
+      "digit": "4",
+      "confidence": "high",
+      "issues": [
+        "none"
+      ],
+      "notes": "Formed with an open top, consistent style throughout the image."
+    },
+    {
+      "digit": "1",
+      "confidence": "high",
+      "issues": [
+        "none"
+      ],
+      "notes": "Clearly formed."
+    },
+    {
+      "digit": "2",
+      "confidence": "high",
+      "issues": [
+        "reversal",
+        "malformed"
+      ],
+      "notes": "Appears to be a reversed '2'. The loop and tail direction are mirrored compared to a standard '2'."
+    },
+    {
+      "digit": "4",
+      "confidence": "high",
+      "issues": [
+        "none"
+      ],
+      "notes": "Formed with an open top, consistent style throughout the image."
+    }
+  ],
+  "observations": [
+    "The image displays a mathematical expression involving addition and a fraction.",
+    "The number '4' is consistently written with an open-top style, which is a common handwritten variation.",
+    "The first digit of the denominator is a clearly reversed '2'."
+  ],
+  "screening_risk": {
+    "risk_level": "MEDIUM",
+    "reason": "One significant digit reversal ('2') is observed within a small sample of numbers, which may indicate difficulty with number formation."
+  }
+}

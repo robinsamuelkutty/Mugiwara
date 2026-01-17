@@ -19,22 +19,33 @@ def extract_digits_from_image(image_path: str) -> str:
     Upload image to Gemini and extract only digits.
     """
     prompt = """
-You are analyzing a dyscalculia screening test.
-The image contains digits written by a child.
+    You are analyzing a dyscalculia screening test.
 
-TASK:
-Extract ONLY the digits in the exact order they appear.
+    The image contains digits written by a child as part of the screening.
+    Your task is to judge whether the writing pattern shows signs consistent with dyscalculia.
 
-STRICT RULES:
-- Output ONLY digits (0-9)
-- No spaces
-- No new lines
-- No explanations
-- No extra text
+    EVALUATE BASED ON:
+    - frequent digit reversals or mirroring
+    - inconsistent number formation
+    - confusion between similar digits (e.g., 2/5, 6/9, 3/8)
+    - irregular sequencing or missing digits
+    - poor number representation that suggests number-symbol difficulty
 
-Example output:
-13574
-"""
+    IMPORTANT:
+    This is only a screening decision based on this single sample (not a diagnosis).
+
+    OUTPUT FORMAT (STRICT):
+    Return exactly 2 lines:
+
+    Line 1: One label only:
+    LIKELY_DYSCALCULIA
+    or
+    UNLIKELY_DYSCALCULIA
+
+    Line 2: Reason in 1-2 short sentences, referring only to what is visible in the image.
+
+    Do not output anything else.
+    """
 
     uploaded = client.files.upload(file=image_path)
 
@@ -99,8 +110,7 @@ def main():
         print("\n🎉 Perfect match! No digit confusion detected.")
     else:
         print("\n⚠️ Mismatches found (possible digit confusion):\n")
-        for m in mismatches:
-            print(f"Index {m['index']} | Expected: {m['expected']} | Got: {m['got']}")
+        print(extracted)
 
 
 if __name__ == "__main__":
