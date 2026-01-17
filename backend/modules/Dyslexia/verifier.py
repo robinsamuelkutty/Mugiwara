@@ -6,7 +6,6 @@ from pathlib import Path
 # Gemini SDK (new)
 from google import genai
 
-from modules.Dyscalculia.extractor import GEMINI_API_KEY
 
 env_path = Path(__file__).resolve().parent.parent.parent/".env"
 load_dotenv(env_path)  # loads .env into environment variables

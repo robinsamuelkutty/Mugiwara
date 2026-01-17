@@ -26,6 +26,7 @@ import cv2
 import numpy as np
 import json
 import base64
+from google.genai import types
 
 
 print("This app is running")
@@ -156,22 +157,29 @@ Line 2: Reason in 1-2 short sentences, referring only to what is visible in the 
 Do not output anything else.
 """
 
-    # read file bytes
     img_bytes = await image.read()
 
-    # send bytes directly (no file path)
+    image_part = types.Part.from_bytes(
+        data=img_bytes,
+        mime_type=image.content_type  # "image/jpeg" or "image/png"
+    )
+
     response = client.models.generate_content(
         model=MODEL_NAME,
-        contents=[
-            prompt,
-            {
-                "mime_type": image.content_type,  # like "image/png" or "image/jpeg"
-                "data": img_bytes
-            }
-        ]
+        contents=[prompt, image_part]
     )
 
     return response.text.strip()
+
+
+@app.post("/dyscalculia/number_detector")
+async def detect_number(image: UploadFile = File(...)):
+    result = await analyze_dyscalculia_image(image)
+
+    return {
+        "filename": image.filename,
+        "result": result
+    }
 
 @app.post("/dyscalculia/number_detector")
 async def detect_number(image: UploadFile = File(...)):

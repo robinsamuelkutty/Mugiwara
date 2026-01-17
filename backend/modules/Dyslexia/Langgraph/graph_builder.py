@@ -2,9 +2,9 @@ from langgraph.graph import StateGraph, END
 from modules.Dyslexia.Langgraph.graph_state import DyslexiaGraphState
 from modules.Dyslexia.Langgraph.graph_nodes import (
     node_compare_and_score,
-    node_router,
+    node_decide_route,
     node_advance_level,
-    node_llm_verify,
+    node_final_verifier,
 )
 
 def route_condition(state: DyslexiaGraphState) -> str:
@@ -22,9 +22,9 @@ def build_dyslexia_graph():
     graph = StateGraph(DyslexiaGraphState)
 
     graph.add_node("compare_score", node_compare_and_score)
-    graph.add_node("router", node_router)
+    graph.add_node("router", node_decide_route)
     graph.add_node("advance", node_advance_level)
-    graph.add_node("verify", node_llm_verify)
+    graph.add_node("verify", node_final_verifier)
 
     graph.set_entry_point("compare_score")
 
