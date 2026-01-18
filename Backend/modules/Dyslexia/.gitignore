@@ -1,5 +1,18 @@
-.env
-.idea
-back
-__pycache__
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
 env/
+venv/
+.venv/
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store
+
+# Env files
+.env
